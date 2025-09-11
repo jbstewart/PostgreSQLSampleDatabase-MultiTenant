@@ -4,12 +4,14 @@
 -- Step 1: Create tenants table
 CREATE TABLE webshop.tenants (
   id SERIAL PRIMARY KEY,
+  key UUID NOT NULL DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
   domain TEXT,
   created TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated TIMESTAMP WITH TIME ZONE,
-  active BOOLEAN DEFAULT TRUE
+  active BOOLEAN DEFAULT TRUE,
+  UNIQUE(key)
 );
 
 COMMENT ON TABLE webshop.tenants IS 'Tenant organizations using the webshop platform';
