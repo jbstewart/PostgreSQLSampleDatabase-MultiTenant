@@ -1,4 +1,4 @@
-# PostgreSQL Sample Database
+# PostgreSQL Multi-Tenant Sample Database
 
 This is a sample webshop, including 
 
