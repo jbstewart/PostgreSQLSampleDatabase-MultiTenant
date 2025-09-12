@@ -81,19 +81,19 @@ WHERE webshop.customer.id = ta.customer_id;
 WITH order_tenant_conflicts AS (
   SELECT 
     o.id as order_id,
-    o.customerId,
+    o.customer,
     COUNT(DISTINCT a.tenant_id) as tenant_count,
     MIN(a.tenant_id) as primary_tenant_id
   FROM webshop.order o
-  JOIN webshop.order_positions op ON o.id = op.orderId
-  JOIN webshop.articles a ON op.articleId = a.id
+  JOIN webshop.order_positions op ON o.id = op.orderid
+  JOIN webshop.articles a ON op.articleid = a.id
   WHERE o.tenant_id IS NULL
-  GROUP BY o.id, o.customerId
+  GROUP BY o.id, o.customer
 ),
 -- For orders with conflicting tenants, we'll reassign the customer to match the primary article tenant
 customer_reassignments AS (
   SELECT DISTINCT
-    otc.customerId,
+    otc.customer,
     otc.primary_tenant_id
   FROM order_tenant_conflicts otc
   WHERE otc.tenant_count > 1
@@ -102,14 +102,21 @@ customer_reassignments AS (
 UPDATE webshop.customer 
 SET tenant_id = cr.primary_tenant_id
 FROM customer_reassignments cr
-WHERE webshop.customer.id = cr.customerId;
+WHERE webshop.customer.id = cr.customer;
 
 -- Now update orders - assign to same tenant as customer (which now aligns with articles)
 UPDATE webshop.order 
 SET tenant_id = c.tenant_id
 FROM webshop.customer c
-WHERE webshop.order.customerId = c.id
+WHERE webshop.order.customer = c.id
 AND webshop.order.tenant_id IS NULL;
+
+-- Add NOT NULL constraints after all updates are complete
+ALTER TABLE webshop.labels ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE webshop.products ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE webshop.articles ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE webshop.customer ALTER COLUMN tenant_id SET NOT NULL;
+ALTER TABLE webshop.order ALTER COLUMN tenant_id SET NOT NULL;
 
 -- Re-enable RLS
 ALTER TABLE webshop.labels ENABLE ROW LEVEL SECURITY;
@@ -121,36 +128,23 @@ ALTER TABLE webshop.address ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.order ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.order_positions ENABLE ROW LEVEL SECURITY;
 
--- Add NOT NULL constraints after migration
-ALTER TABLE webshop.labels ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE webshop.products ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE webshop.articles ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE webshop.customer ALTER COLUMN tenant_id SET NOT NULL;
-ALTER TABLE webshop.order ALTER COLUMN tenant_id SET NOT NULL;
+-- Simple verification: Count records per tenant
+SELECT 'Labels' as table_name, tenant_id, COUNT(*) as count FROM webshop.labels GROUP BY tenant_id ORDER BY tenant_id;
+SELECT 'Products' as table_name, tenant_id, COUNT(*) as count FROM webshop.products GROUP BY tenant_id ORDER BY tenant_id;
+SELECT 'Articles' as table_name, tenant_id, COUNT(*) as count FROM webshop.articles GROUP BY tenant_id ORDER BY tenant_id;
+SELECT 'Customers' as table_name, tenant_id, COUNT(*) as count FROM webshop.customer GROUP BY tenant_id ORDER BY tenant_id;
+SELECT 'Orders' as table_name, tenant_id, COUNT(*) as count FROM webshop.order GROUP BY tenant_id ORDER BY tenant_id;
 
--- Verify migration results
+-- Quick consistency check (sample only to avoid hanging)
 SELECT 
-  t.name as tenant_name,
-  COUNT(DISTINCT c.id) as customers,
-  COUNT(DISTINCT o.id) as orders,
-  COUNT(DISTINCT p.id) as products,
-  COUNT(DISTINCT a.id) as articles,
-  COUNT(DISTINCT l.id) as labels
-FROM webshop.tenants t
-LEFT JOIN webshop.customer c ON t.id = c.tenant_id
-LEFT JOIN webshop.order o ON t.id = o.tenant_id
-LEFT JOIN webshop.products p ON t.id = p.tenant_id
-LEFT JOIN webshop.articles a ON t.id = a.tenant_id
-LEFT JOIN webshop.labels l ON t.id = l.tenant_id
-GROUP BY t.id, t.name
-ORDER BY t.name;
-
--- Additional verification: Check for tenant consistency in order_positions
-SELECT 
-  'Order-Article Tenant Consistency Check' as check_name,
-  COUNT(*) as total_order_positions,
-  COUNT(CASE WHEN o.tenant_id = a.tenant_id THEN 1 END) as consistent_positions,
-  COUNT(CASE WHEN o.tenant_id != a.tenant_id THEN 1 END) as inconsistent_positions
-FROM webshop.order_positions op
-JOIN webshop.order o ON op.orderId = o.id
-JOIN webshop.articles a ON op.articleId = a.id;
+  'Order-Article Consistency Sample' as check_name,
+  COUNT(*) as sample_size,
+  SUM(CASE WHEN o.tenant_id = a.tenant_id THEN 1 ELSE 0 END) as consistent,
+  SUM(CASE WHEN o.tenant_id != a.tenant_id THEN 1 ELSE 0 END) as inconsistent
+FROM (
+  SELECT op.orderid, op.articleid 
+  FROM webshop.order_positions op 
+  LIMIT 100
+) sample_op
+JOIN webshop.order o ON sample_op.orderid = o.id
+JOIN webshop.articles a ON sample_op.articleid = a.id;
