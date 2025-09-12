@@ -17840,6 +17840,14 @@ ALTER TABLE ONLY webshop.articles
 
 
 --
+-- Name: articles_productid_fkey; Type: FK CONSTRAINT; Schema: webshop; Owner: postgres
+--
+
+ALTER TABLE ONLY webshop.articles
+    ADD CONSTRAINT articles_productid_fkey FOREIGN KEY (productid) REFERENCES webshop.products(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
