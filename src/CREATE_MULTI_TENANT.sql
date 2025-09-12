@@ -19,14 +19,16 @@ COMMENT ON TABLE webshop.tenants IS 'Tenant organizations using the webshop plat
 -- Step 2: Add tenant_id to all main tables
 ALTER TABLE webshop.labels ADD COLUMN tenant_id INTEGER REFERENCES webshop.tenants(id);
 ALTER TABLE webshop.products ADD COLUMN tenant_id INTEGER REFERENCES webshop.tenants(id);
+ALTER TABLE webshop.articles ADD COLUMN tenant_id INTEGER REFERENCES webshop.tenants(id);
 ALTER TABLE webshop.customer ADD COLUMN tenant_id INTEGER REFERENCES webshop.tenants(id);
 ALTER TABLE webshop.order ADD COLUMN tenant_id INTEGER REFERENCES webshop.tenants(id);
 
--- Note: colors, sizes, articles, stock, address, order_positions inherit tenant through relationships
+-- Note: colors, sizes, stock, address, order_positions inherit tenant through relationships
 
 -- Step 3: Create indexes for performance
 CREATE INDEX idx_labels_tenant_id ON webshop.labels(tenant_id);
 CREATE INDEX idx_products_tenant_id ON webshop.products(tenant_id);
+CREATE INDEX idx_articles_tenant_id ON webshop.articles(tenant_id);
 CREATE INDEX idx_customer_tenant_id ON webshop.customer(tenant_id);
 CREATE INDEX idx_order_tenant_id ON webshop.order(tenant_id);
 
