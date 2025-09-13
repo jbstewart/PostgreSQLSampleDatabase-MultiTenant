@@ -17,7 +17,7 @@ You can set up the database using the unified `restore.sh` script:
 $ ./restore.sh [database_name] [username] [host] [port]
 
 # Multi-tenant setup
-$ ./restore.sh [database_name] [username] [host] [port] --multi-tenant
+$ ./restore.sh [database_name] [username] [host] [port] --multi-tenant --create-mcp-user
 ```
 
 ### Examples
