@@ -32,16 +32,25 @@ CREATE INDEX idx_articles_tenant_id ON webshop.articles(tenant_id);
 CREATE INDEX idx_customer_tenant_id ON webshop.customer(tenant_id);
 CREATE INDEX idx_order_tenant_id ON webshop.order(tenant_id);
 
--- Step 4: Enable Row Level Security (RLS)
+-- Step 4: Enable Row Level Security (RLS) and force it for table owners
 ALTER TABLE webshop.tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.tenants FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.labels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.labels FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.products FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.articles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.articles FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.stock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.stock FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.customer ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.customer FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.address ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.address FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.order ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.order FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.order_positions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webshop.order_positions FORCE ROW LEVEL SECURITY;
 
 -- Step 5: Create RLS policies
 -- Tenants can only see their own data

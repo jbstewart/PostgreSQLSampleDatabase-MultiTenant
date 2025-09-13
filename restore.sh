@@ -17,13 +17,15 @@ for arg in "$@"; do
         echo "  port           PostgreSQL port (default: 5432)"
         echo ""
         echo "Options:"
-        echo "  --multi-tenant  Enable multi-tenant setup"
-        echo "  --help, -h      Show this help message"
+        echo "  --multi-tenant    Enable multi-tenant setup"
+        echo "  --create-mcp-user Create dedicated MCP server user (recommended for RLS)"
+        echo "  --help, -h        Show this help message"
         echo ""
         echo "Examples:"
-        echo "  $0                                    # Single-tenant with defaults"
-        echo "  $0 myshop postgres localhost 5432    # Custom connection"
-        echo "  $0 myshop postgres --multi-tenant    # Multi-tenant setup"
+        echo "  $0                                            # Single-tenant with defaults"
+        echo "  $0 myshop postgres localhost 5432            # Custom connection"
+        echo "  $0 myshop postgres --multi-tenant            # Multi-tenant setup"
+        echo "  $0 --multi-tenant --create-mcp-user          # Multi-tenant with MCP user"
         exit 0
     fi
 done
@@ -33,13 +35,18 @@ USERNAME=${2:-jbstewart}
 HOST=${3:-localhost}
 PORT=${4:-5432}
 MULTI_TENANT=false
+CREATE_MCP_USER=false
 
-# Check for --multi-tenant flag in any position
+# Check for flags in any position
 for arg in "$@"; do
-    if [ "$arg" = "--multi-tenant" ]; then
-        MULTI_TENANT=true
-        break
-    fi
+    case "$arg" in
+        --multi-tenant)
+            MULTI_TENANT=true
+            ;;
+        --create-mcp-user)
+            CREATE_MCP_USER=true
+            ;;
+    esac
 done
 
 echo "Setting up database: $DB_NAME"
@@ -106,6 +113,45 @@ if [ "$MULTI_TENANT" = true ]; then
         exit 1
     fi
     
+    # Create MCP user if requested
+    if [ "$CREATE_MCP_USER" = true ]; then
+        echo ""
+        echo "Step 5: Creating MCP server user..."
+        
+        # Create a temporary file with the MCP user creation script
+        cat > /tmp/create_mcp_user_temp.sql <<EOF
+-- Create dedicated user for MCP server with RLS enforcement
+DROP USER IF EXISTS mcp_user;
+CREATE USER mcp_user WITH PASSWORD 'mcp_secure_password';
+GRANT USAGE ON SCHEMA webshop TO mcp_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA webshop TO mcp_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA webshop TO mcp_user;
+GRANT EXECUTE ON FUNCTION webshop.set_current_tenant(INTEGER) TO mcp_user;
+GRANT EXECUTE ON FUNCTION webshop.get_current_tenant() TO mcp_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA webshop GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mcp_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA webshop GRANT USAGE, SELECT ON SEQUENCES TO mcp_user;
+EOF
+        
+        psql -h $HOST -p $PORT -U $USERNAME -d $DB_NAME -f /tmp/create_mcp_user_temp.sql
+        rm /tmp/create_mcp_user_temp.sql
+        
+        if [ $? -eq 0 ]; then
+            echo "✓ MCP user created successfully"
+            echo ""
+            echo "MCP Server Connection Details:"
+            echo "  Host: $HOST"
+            echo "  Port: $PORT"
+            echo "  Database: $DB_NAME"
+            echo "  Username: mcp_user"
+            echo "  Password: mcp_secure_password"
+            echo ""
+            echo "⚠️  IMPORTANT: Change the password in production!"
+            echo "  ALTER USER mcp_user WITH PASSWORD 'your_secure_password';"
+        else
+            echo "✗ Failed to create MCP user"
+        fi
+    fi
+    
     echo ""
     echo "🎉 Multi-tenant database setup complete!"
     echo ""
@@ -119,10 +165,54 @@ if [ "$MULTI_TENANT" = true ]; then
     echo "   SELECT webshop.set_current_tenant(3); -- for Urban Trends"
     echo ""
     echo "3. All queries will now automatically filter by tenant_id"
+    
+    if [ "$CREATE_MCP_USER" != true ]; then
+        echo ""
+        echo "4. Create MCP server user (recommended for RLS):"
+        echo "   psql -h $HOST -p $PORT -U $USERNAME -d $DB_NAME -f src/CREATE_MCP_USER.sql"
+    fi
+    
     echo ""
     echo "Available tenants:"
     psql -h $HOST -p $PORT -U $USERNAME -d $DB_NAME -c "SELECT id, name, slug FROM webshop.tenants ORDER BY id;"
 else
+    # Create MCP user if requested (even for single-tenant)
+    if [ "$CREATE_MCP_USER" = true ]; then
+        echo ""
+        echo "Step 3: Creating MCP server user..."
+        
+        # Create a temporary file with the MCP user creation script
+        cat > /tmp/create_mcp_user_temp.sql <<EOF
+-- Create dedicated user for MCP server
+DROP USER IF EXISTS mcp_user;
+CREATE USER mcp_user WITH PASSWORD 'mcp_secure_password';
+GRANT USAGE ON SCHEMA webshop TO mcp_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA webshop TO mcp_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA webshop TO mcp_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA webshop GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO mcp_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA webshop GRANT USAGE, SELECT ON SEQUENCES TO mcp_user;
+EOF
+        
+        psql -h $HOST -p $PORT -U $USERNAME -d $DB_NAME -f /tmp/create_mcp_user_temp.sql
+        rm /tmp/create_mcp_user_temp.sql
+        
+        if [ $? -eq 0 ]; then
+            echo "✓ MCP user created successfully"
+            echo ""
+            echo "MCP Server Connection Details:"
+            echo "  Host: $HOST"
+            echo "  Port: $PORT"
+            echo "  Database: $DB_NAME"
+            echo "  Username: mcp_user"
+            echo "  Password: mcp_secure_password"
+            echo ""
+            echo "⚠️  IMPORTANT: Change the password in production!"
+            echo "  ALTER USER mcp_user WITH PASSWORD 'your_secure_password';"
+        else
+            echo "✗ Failed to create MCP user"
+        fi
+    fi
+    
     echo ""
     echo "🎉 Single-tenant database setup complete!"
     echo ""
