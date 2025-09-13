@@ -33,8 +33,7 @@ CREATE INDEX idx_customer_tenant_id ON webshop.customer(tenant_id);
 CREATE INDEX idx_order_tenant_id ON webshop.order(tenant_id);
 
 -- Step 4: Enable Row Level Security (RLS) and force it for table owners
-ALTER TABLE webshop.tenants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE webshop.tenants FORCE ROW LEVEL SECURITY;
+-- Note: Tenants table does NOT have RLS - all users need to see available tenants
 ALTER TABLE webshop.labels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.labels FORCE ROW LEVEL SECURITY;
 ALTER TABLE webshop.products ENABLE ROW LEVEL SECURITY;

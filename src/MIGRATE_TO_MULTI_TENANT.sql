@@ -2,6 +2,7 @@
 -- Run this AFTER CREATE_MULTI_TENANT.sql and AFTER loading your existing data
 
 -- Temporarily disable RLS for data migration
+-- Note: tenants table doesn't have RLS enabled
 ALTER TABLE webshop.labels DISABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.products DISABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.articles DISABLE ROW LEVEL SECURITY;
@@ -118,7 +119,7 @@ ALTER TABLE webshop.articles ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE webshop.customer ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE webshop.order ALTER COLUMN tenant_id SET NOT NULL;
 
--- Re-enable RLS
+-- Re-enable RLS (tenants table remains without RLS)
 ALTER TABLE webshop.labels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE webshop.articles ENABLE ROW LEVEL SECURITY;
